@@ -89,18 +89,63 @@ bool RealisticHeadBobMod::enable() {
 
             headbob::Config::get().saveToFile(p.string());
         })
-        .config("mode", "Mode", ConfigType::Radio, "bodycam",
-                "default", "bodycam", "comfort", "custom")
-        .config("globalStrength", "Global Strength",
-                ConfigType::SliderFloat, "0.32", "0.0", "3.0")
-        .config("stepStrength", "Step Strength",
-                ConfigType::SliderFloat, "1.0", "0.0", "3.0")
-        .config("swayStrength", "Sway Strength",
-                ConfigType::SliderFloat, "1.0", "0.0", "3.0")
-        .config("smoothHz", "Spring Hz",
-                ConfigType::SliderFloat, "1.75", "0.25", "6.0")
-        .config("damping", "Damping",
-                ConfigType::SliderFloat, "1.25", "0.1", "3.0")
+
+        // ModMenu 0.2.2 supports:
+        // config(key, displayName, type, defaultValue, minValue, maxValue, dependsOn)
+        //
+        // Radio does not accept a variable list of choices here.
+        .config(
+            "mode",
+            "Mode",
+            ConfigType::Radio,
+            "bodycam"
+        )
+
+        .config(
+            "globalStrength",
+            "Global Strength",
+            ConfigType::SliderFloat,
+            "0.32",
+            "0.0",
+            "3.0"
+        )
+
+        .config(
+            "stepStrength",
+            "Step Strength",
+            ConfigType::SliderFloat,
+            "1.0",
+            "0.0",
+            "3.0"
+        )
+
+        .config(
+            "swayStrength",
+            "Sway Strength",
+            ConfigType::SliderFloat,
+            "1.0",
+            "0.0",
+            "3.0"
+        )
+
+        .config(
+            "smoothHz",
+            "Spring Hz",
+            ConfigType::SliderFloat,
+            "1.75",
+            "0.25",
+            "6.0"
+        )
+
+        .config(
+            "damping",
+            "Damping",
+            ConfigType::SliderFloat,
+            "1.25",
+            "0.1",
+            "3.0"
+        )
+
         .registerModule();
 
     if (!resolveAndHook()) {

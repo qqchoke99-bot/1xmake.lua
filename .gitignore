@@ -1,0 +1,12 @@
+build-*/
+build/
+.idea/
+.vscode/
+*.user
+*.o
+*.so
+*.levipack
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
+.DS_Store

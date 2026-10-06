@@ -79,20 +79,31 @@ bool RealisticHeadBobMod::enable() {
     log.info("Realistic Head Bob: enable");
 
     /*
-     * ModMenu remains disabled.
+     * ModMenu is intentionally disabled.
      *
-     * This test enables ONLY the CameraBlend hook.
+     * Previous crash:
+     *   pl::modmenu::registerModule()
+     *
+     * So ModMenu is NOT involved in this test.
      */
 
-    log.info("ModMenu disabled for crash test");
+    log.info("ModMenu disabled");
+
+    /*
+     * CameraBlend hook test.
+     *
+     * The hook will be installed, but the detour below
+     * intentionally does absolutely nothing.
+     *
+     * This isolates the hook mechanism itself.
+     */
+
+    log.info("Installing CameraBlend test hook");
 
     if (!resolveAndHook()) {
-        log.warn(
-            "Camera hook not installed — "
-            "check cameraBlendSig in config.json"
-        );
+        log.error("CameraBlend test hook FAILED");
     } else {
-        log.info("Camera blend hook OK");
+        log.info("CameraBlend test hook INSTALLED");
     }
 
     return true;
@@ -113,7 +124,7 @@ bool RealisticHeadBobMod::resolveAndHook() {
     auto& cfg = headbob::Config::get();
 
     if (cfg.cameraBlendSig.empty()) {
-        log.warn("cameraBlendSig empty");
+        log.error("cameraBlendSig is empty");
         return false;
     }
 
@@ -129,33 +140,47 @@ bool RealisticHeadBobMod::resolveAndHook() {
         );
 
     if (addr == 0) {
-        log.error("resolveSignature failed");
+        log.error("CameraBlend signature NOT found");
         return false;
     }
 
     log.info(
-        "cameraBlend @ {:#x}",
+        "CameraBlend signature resolved @ {:#x}",
         static_cast<unsigned long long>(addr)
     );
 
+    /*
+     * Install the hook.
+     */
     mCameraBlendHook = pl::memory::HookHandle(
         reinterpret_cast<void*>(addr),
         reinterpret_cast<void*>(
             &RealisticHeadBobMod::cameraBlendDetour
         ),
-        reinterpret_cast<void**>(&mOrigCameraBlend),
+        reinterpret_cast<void**>(
+            &mOrigCameraBlend
+        ),
         pl::memory::HookPriority::Low
     );
 
     if (!mCameraBlendHook.installed()) {
-        log.error("CameraBlend hook installation failed");
+        log.error("CameraBlend HookHandle installation FAILED");
 
         mOrigCameraBlend = nullptr;
 
         return false;
     }
 
-    log.info("CameraBlend hook installed");
+    log.info(
+        "CameraBlend HookHandle installation SUCCESS"
+    );
+
+    /*
+     * IMPORTANT:
+     *
+     * We intentionally do NOT call the original function
+     * from the detour in this test.
+     */
 
     return true;
 }
@@ -165,31 +190,45 @@ void RealisticHeadBobMod::unhookAll() {
     mOrigCameraBlend = nullptr;
 }
 
+/*
+ * ============================================================
+ * CameraBlend TEST DETOUR
+ * ============================================================
+ *
+ * This function intentionally does NOTHING.
+ *
+ * No:
+ *   - original CameraBlend call
+ *   - HeadBob calculation
+ *   - memory writes
+ *   - camera modification
+ *   - player lookup
+ *
+ * If the game crashes with this detour, the problem is very
+ * likely related to the hook target/signature/hook mechanism.
+ */
+
 void RealisticHeadBobMod::cameraBlendDetour(
     void* a,
     void* b,
     float dt
 ) {
-    auto& self = RealisticHeadBobMod::instance();
-
-    /*
-     * Call the original CameraBlend function first.
-     */
-    if (self.mOrigCameraBlend) {
-        self.mOrigCameraBlend(a, b, dt);
-    }
-
-    /*
-     * Run the existing HeadBob calculation.
-     *
-     * At this stage we only calculate the delta.
-     * We do NOT write directly into unknown camera memory.
-     */
-    self.onCameraTick(dt);
-
+    (void)a;
     (void)b;
-    (void)gLastDelta;
+    (void)dt;
+
+    /*
+     * EMPTY INTENTIONALLY
+     */
 }
+
+/*
+ * ============================================================
+ * HeadBob calculation
+ * ============================================================
+ *
+ * Not used by the current crash-isolation test.
+ */
 
 void RealisticHeadBobMod::onCameraTick(float dt) {
     auto& cfg = headbob::Config::get();

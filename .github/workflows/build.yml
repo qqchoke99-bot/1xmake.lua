@@ -52,40 +52,32 @@ jobs:
             -DMOD_LIBRARY_NAME=realistic_headbob \
             -DMOD_MINECRAFT_VERSIONS='[]'
 
-      - name: Inspect LeviLamina API
+      - name: Inspect PreLoader API
         run: |
+          echo "========================================"
+          echo "=== ALL PreLoader headers ==="
+          echo "========================================"
+
+          find build-${{ matrix.abi }}/_deps/preloader_android-src/include \
+            -type f | sort
+
+          echo ""
           echo "========================================"
           echo "=== Mod-related headers ==="
           echo "========================================"
 
           find build-${{ matrix.abi }}/_deps/preloader_android-src/include \
-            -type f | sort | grep -E 'Mod|mod' || true
+            -type f | grep -Ei 'mod|lifecycle|register' || true
 
           echo ""
           echo "========================================"
-          echo "=== Mod classes ==="
+          echo "=== Mod class definitions ==="
           echo "========================================"
 
-          grep -RIn "class .*Mod" \
+          grep -RInE \
+            'class .*Mod|struct .*Mod|NativeMod|ModLifecycle|REGISTER_MOD|RegisterMod' \
             build-${{ matrix.abi }}/_deps/preloader_android-src/include \
-            src 2>/dev/null | head -50 || true
-
-          echo ""
-          echo "========================================"
-          echo "=== LL_REGISTER_MOD ==="
-          echo "========================================"
-
-          grep -RIn "LL_REGISTER_MOD" . \
-            --exclude-dir=.git \
-            --exclude='*.o' \
-            --exclude='*.so' || true
-
-          echo ""
-          echo "========================================"
-          echo "=== ll/api headers ==="
-          echo "========================================"
-
-          find . -type f | grep '/ll/api/' | sort || true
+            2>/dev/null | head -200 || true
 
       - name: Build + Package
         run: |

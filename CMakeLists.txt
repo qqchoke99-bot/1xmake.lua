@@ -41,7 +41,10 @@ set(MOD_DESCRIPTION
     CACHE STRING ""
 )
 
-# ---- Fetch preloader-android SDK ----
+# ============================================================
+# Fetch preloader-android SDK
+# ============================================================
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -67,8 +70,12 @@ target_include_directories(${MOD_LIBRARY_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+# IMPORTANT:
+# preloader Logger.hpp uses Android's __android_log_print(),
+# so the mod must link against Android liblog.
 target_link_libraries(${MOD_LIBRARY_NAME} PRIVATE
     preloader
+    log
 )
 
 # Android specifics
@@ -96,14 +103,9 @@ configure_file(
 # ============================================================
 # Generate config.json directly with CMake
 #
-# IMPORTANT:
 # Do NOT build config_generator.cpp here.
 # The Android NDK builds ARM64 binaries, while GitHub Actions
-# runs on x86_64 Linux. Trying to execute an ARM64 binary on
-# the runner causes:
-#
-#   Exec format error
-#
+# runs on x86_64 Linux.
 # ============================================================
 
 file(WRITE
@@ -210,6 +212,7 @@ file(WRITE
 # ============================================================
 
 add_custom_target(levi_package
+
     COMMAND ${CMAKE_COMMAND} -E make_directory
         ${CMAKE_BINARY_DIR}/package/${MOD_ID}
 

@@ -1,1 +1,63 @@
+name: Build Levi Mod
 
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        abi: [arm64-v8a]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK (not required, but harmless)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Ninja + CMake
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r28b
+          add-to-path: false
+
+      - name: Configure
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          cmake -S . -B build-${{ matrix.abi }} \
+            -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=${{ matrix.abi }} \
+            -DANDROID_PLATFORM=android-28 \
+            -DANDROID_STL=c++_shared \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DMOD_ID=realistic_headbob \
+            -DMOD_NAME="Realistic Head Bob" \
+            -DMOD_AUTHOR=port \
+            -DMOD_VERSION=1.0.0 \
+            -DMOD_LIBRARY_NAME=realistic_headbob \
+            -DMOD_MINECRAFT_VERSIONS='[]'
+
+      - name: Build + Package
+        run: |
+          cmake --build build-${{ matrix.abi }} --target levi_package -j$(nproc)
+
+      - name: Upload .levipack
+        uses: actions/upload-artifact@v4
+        with:
+          name: realistic_headbob-${{ matrix.abi }}
+          path: build-${{ matrix.abi }}/realistic_headbob.levipack

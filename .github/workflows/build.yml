@@ -52,6 +52,41 @@ jobs:
             -DMOD_LIBRARY_NAME=realistic_headbob \
             -DMOD_MINECRAFT_VERSIONS='[]'
 
+      - name: Inspect LeviLamina API
+        run: |
+          echo "========================================"
+          echo "=== Mod-related headers ==="
+          echo "========================================"
+
+          find build-${{ matrix.abi }}/_deps/preloader_android-src/include \
+            -type f | sort | grep -E 'Mod|mod' || true
+
+          echo ""
+          echo "========================================"
+          echo "=== Mod classes ==="
+          echo "========================================"
+
+          grep -RIn "class .*Mod" \
+            build-${{ matrix.abi }}/_deps/preloader_android-src/include \
+            src 2>/dev/null | head -50 || true
+
+          echo ""
+          echo "========================================"
+          echo "=== LL_REGISTER_MOD ==="
+          echo "========================================"
+
+          grep -RIn "LL_REGISTER_MOD" . \
+            --exclude-dir=.git \
+            --exclude='*.o' \
+            --exclude='*.so' || true
+
+          echo ""
+          echo "========================================"
+          echo "=== ll/api headers ==="
+          echo "========================================"
+
+          find . -type f | grep '/ll/api/' | sort || true
+
       - name: Build + Package
         run: |
           cmake --build build-${{ matrix.abi }} --target levi_package -j$(nproc)

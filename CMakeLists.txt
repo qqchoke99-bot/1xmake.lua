@@ -5,7 +5,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ---- Mod metadata ----
+# ============================================================
+# Mod metadata
+# ============================================================
+
 set(MOD_ID
     "realistic_headbob"
     CACHE STRING "Runtime mod id / folder name"
@@ -70,9 +73,7 @@ target_include_directories(${MOD_LIBRARY_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-# IMPORTANT:
-# preloader Logger.hpp uses Android's __android_log_print(),
-# so the mod must link against Android liblog.
+# preloader Logger.hpp uses Android __android_log_print()
 target_link_libraries(${MOD_LIBRARY_NAME} PRIVATE
     preloader
     log
@@ -102,10 +103,6 @@ configure_file(
 
 # ============================================================
 # Generate config.json directly with CMake
-#
-# Do NOT build config_generator.cpp here.
-# The Android NDK builds ARM64 binaries, while GitHub Actions
-# runs on x86_64 Linux.
 # ============================================================
 
 file(WRITE
@@ -232,11 +229,21 @@ add_custom_target(levi_package
         ${CMAKE_BINARY_DIR}/config.schema.json
         ${CMAKE_BINARY_DIR}/package/${MOD_ID}/config/
 
-    COMMAND ${CMAKE_COMMAND} -E tar
+    # --------------------------------------------------------
+    # Create ZIP/LEVIPACK.
+    #
+    # cmake -E tar does NOT support normal tar "-C" syntax
+    # in this environment.
+    #
+    # Instead change directory using cmake -E chdir first.
+    # --------------------------------------------------------
+
+    COMMAND ${CMAKE_COMMAND} -E chdir
+        ${CMAKE_BINARY_DIR}/package
+        ${CMAKE_COMMAND} -E tar
         cf
         ${CMAKE_BINARY_DIR}/${MOD_ID}.levipack
         --format=zip
-        -C ${CMAKE_BINARY_DIR}/package
         ${MOD_ID}
 
     DEPENDS

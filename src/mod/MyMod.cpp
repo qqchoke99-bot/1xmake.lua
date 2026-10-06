@@ -1,21 +1,25 @@
 #include "mod/MyMod.h"
 
 #include <pl/Mod.hpp>
-#include <pl/ModMenu.hpp>
 #include <pl/memory/Hook.hpp>
 #include <pl/memory/Signature.hpp>
 
 #include <filesystem>
 #include <string>
 
-// Same approach as CameraOverhaul:
+// CameraBlend hook approach:
 //   resolveSignature(byte pattern, "libminecraftpe.so")
-//   pl::memory::hook(target, detour, &original, priority)
+//   HookHandle(target, detour, &original, priority)
 //
-// Detour shape from CameraOverhaul symbols:
-//   _cameraBlendTick_hook(void*, void*, float)
+// Detour shape:
+//   cameraBlendDetour(void*, void*, float)
 //
-// Without cameraBlendSig for your MC version, mod loads but camera does not move.
+// IMPORTANT:
+// ModMenu registration is intentionally disabled for this test.
+// The previous crash occurred inside:
+//   pl::modmenu::registerModule()
+// We keep the actual mod lifecycle, config, signature resolver,
+// hook, and HeadBob logic unchanged.
 
 namespace {
 
@@ -35,7 +39,8 @@ struct PlayerSnap {
 };
 
 PlayerSnap queryPlayerRough() {
-    // Optional next step: LocalPlayer velocity / onGround signatures
+    // Optional next step:
+    // LocalPlayer velocity / onGround signatures.
     return {};
 }
 
@@ -51,21 +56,32 @@ RealisticHeadBobMod::RealisticHeadBobMod()
 
 bool RealisticHeadBobMod::load() {
     auto& log = getSelf().getLogger();
+
     log.info("Realistic Head Bob load");
 
-    const auto cfgPath = getSelf().getModDir() / "config" / "config.json";
+    const auto cfgPath =
+        getSelf().getModDir() / "config" / "config.json";
+
     auto& cfg = headbob::Config::get();
 
     if (!cfg.loadFromFile(cfgPath.string())) {
         cfg.loadDefaults();
 
         std::error_code ec;
-        std::filesystem::create_directories(cfgPath.parent_path(), ec);
+
+        std::filesystem::create_directories(
+            cfgPath.parent_path(),
+            ec
+        );
 
         cfg.saveToFile(cfgPath.string());
+
         log.info("Wrote default config");
     } else {
-        log.info("Config loaded mode={}", headbob::modeToString(cfg.mode));
+        log.info(
+            "Config loaded mode={}",
+            headbob::modeToString(cfg.mode)
+        );
     }
 
     return true;
@@ -73,84 +89,41 @@ bool RealisticHeadBobMod::load() {
 
 bool RealisticHeadBobMod::enable() {
     auto& log = getSelf().getLogger();
+
     auto& cfg = headbob::Config::get();
 
-    using namespace pl::modmenu;
+    log.info("Realistic Head Bob enable");
 
-    ModuleBuilder("realistic_headbob.main", "Realistic Head Bob")
-        .modId(getSelf().getId())
-        .description("Step head-bob. Modes: default / bodycam / comfort / custom")
-        .defaultEnabled(cfg.enabled)
-        .onToggle([this](std::string_view, bool on) {
-            headbob::Config::get().enabled = on;
+    /*
+     * ModMenu registration is temporarily disabled.
+     *
+     * Previous crash:
+     *
+     *   #01 libpreloader.so
+     *       pl::modmenu::registerModule(...)
+     *
+     *   #02 librealistic_headbob.so
+     *       RealisticHeadBobMod::enable()
+     *
+     * Therefore we do NOT call ModuleBuilder/registerModule()
+     * until the runtime compatibility issue is isolated.
+     *
+     * Configuration still comes from:
+     *
+     *   config/config.json
+     */
 
-            const auto p =
-                getSelf().getModDir() / "config" / "config.json";
+    if (!cfg.enabled) {
+        log.info("Realistic Head Bob disabled by config");
+        return true;
+    }
 
-            headbob::Config::get().saveToFile(p.string());
-        })
-
-        // ModMenu 0.2.2 supports:
-        // config(key, displayName, type, defaultValue, minValue, maxValue, dependsOn)
-        //
-        // Radio does not accept a variable list of choices here.
-        .config(
-            "mode",
-            "Mode",
-            ConfigType::Radio,
-            "bodycam"
-        )
-
-        .config(
-            "globalStrength",
-            "Global Strength",
-            ConfigType::SliderFloat,
-            "0.32",
-            "0.0",
-            "3.0"
-        )
-
-        .config(
-            "stepStrength",
-            "Step Strength",
-            ConfigType::SliderFloat,
-            "1.0",
-            "0.0",
-            "3.0"
-        )
-
-        .config(
-            "swayStrength",
-            "Sway Strength",
-            ConfigType::SliderFloat,
-            "1.0",
-            "0.0",
-            "3.0"
-        )
-
-        .config(
-            "smoothHz",
-            "Spring Hz",
-            ConfigType::SliderFloat,
-            "1.75",
-            "0.25",
-            "6.0"
-        )
-
-        .config(
-            "damping",
-            "Damping",
-            ConfigType::SliderFloat,
-            "1.25",
-            "0.1",
-            "3.0"
-        )
-
-        .registerModule();
+    log.info("ModMenu registration skipped");
 
     if (!resolveAndHook()) {
         log.warn(
-            "Camera hook not installed — set cameraBlendSig in config.json"
+            "Camera hook not installed — "
+            "check cameraBlendSig in config.json"
         );
     } else {
         log.info("Camera blend hook OK");
@@ -224,8 +197,9 @@ void RealisticHeadBobMod::cameraBlendDetour(
 
     self.onCameraTick(dt);
 
-    // Apply gLastDelta to camera fields when offsets are known
-    // (same stage as CameraOverhaul).
+    // Apply gLastDelta to camera fields when offsets are known.
+    // This remains the same stage as CameraOverhaul.
+
     (void)b;
     (void)gLastDelta;
 }
@@ -240,6 +214,7 @@ void RealisticHeadBobMod::onCameraTick(float dt) {
         dt = 1.f / 60.f;
 
     static float gameTime = 0.f;
+
     gameTime += dt;
 
     const auto snap = queryPlayerRough();

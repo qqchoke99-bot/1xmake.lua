@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ll/api/mod/NativeMod.h>
+#include <pl/Mod.hpp>
 #include <pl/memory/Hook.hpp>
 
 #include "mod/Config.h"

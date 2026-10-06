@@ -52,6 +52,7 @@ bool RealisticHeadBobMod::load() {
         cfg.loadDefaults();
 
         std::error_code ec;
+
         std::filesystem::create_directories(
             cfgPath.parent_path(),
             ec
@@ -78,22 +79,21 @@ bool RealisticHeadBobMod::enable() {
     log.info("Realistic Head Bob: enable");
 
     /*
-     * IMPORTANT TEST MODE
+     * ModMenu remains disabled.
      *
-     * Do not register ModMenu here.
-     * The previous tombstone showed:
-     *
-     *   libpreloader.so
-     *   pl::modmenu::registerModule()
-     *
-     * causing the SIGSEGV.
-     *
-     * Also do not install CameraBlend here yet.
-     * We first verify that the mod can enter a world safely.
+     * This test enables ONLY the CameraBlend hook.
      */
 
     log.info("ModMenu disabled for crash test");
-    log.info("Camera hook disabled for crash test");
+
+    if (!resolveAndHook()) {
+        log.warn(
+            "Camera hook not installed — "
+            "check cameraBlendSig in config.json"
+        );
+    } else {
+        log.info("Camera blend hook OK");
+    }
 
     return true;
 }
@@ -116,6 +116,11 @@ bool RealisticHeadBobMod::resolveAndHook() {
         log.warn("cameraBlendSig empty");
         return false;
     }
+
+    log.info(
+        "Resolving CameraBlend signature in {}",
+        cfg.moduleName
+    );
 
     const uintptr_t addr =
         pl::memory::resolveSignature(
@@ -144,9 +149,13 @@ bool RealisticHeadBobMod::resolveAndHook() {
 
     if (!mCameraBlendHook.installed()) {
         log.error("CameraBlend hook installation failed");
+
         mOrigCameraBlend = nullptr;
+
         return false;
     }
+
+    log.info("CameraBlend hook installed");
 
     return true;
 }
@@ -163,10 +172,19 @@ void RealisticHeadBobMod::cameraBlendDetour(
 ) {
     auto& self = RealisticHeadBobMod::instance();
 
+    /*
+     * Call the original CameraBlend function first.
+     */
     if (self.mOrigCameraBlend) {
         self.mOrigCameraBlend(a, b, dt);
     }
 
+    /*
+     * Run the existing HeadBob calculation.
+     *
+     * At this stage we only calculate the delta.
+     * We do NOT write directly into unknown camera memory.
+     */
     self.onCameraTick(dt);
 
     (void)b;
@@ -179,10 +197,12 @@ void RealisticHeadBobMod::onCameraTick(float dt) {
     if (!cfg.enabled)
         return;
 
-    if (dt <= 0.f || dt > 0.1f)
+    if (dt <= 0.f || dt > 0.1f) {
         dt = 1.f / 60.f;
+    }
 
     static float gameTime = 0.f;
+
     gameTime += dt;
 
     const auto snap = queryPlayerRough();

@@ -7,20 +7,6 @@
 #include <filesystem>
 #include <string>
 
-// CameraBlend hook approach:
-//   resolveSignature(byte pattern, "libminecraftpe.so")
-//   HookHandle(target, detour, &original, priority)
-//
-// Detour shape:
-//   cameraBlendDetour(void*, void*, float)
-//
-// IMPORTANT:
-// ModMenu registration is intentionally disabled for this test.
-// The previous crash occurred inside:
-//   pl::modmenu::registerModule()
-// We keep the actual mod lifecycle, config, signature resolver,
-// hook, and HeadBob logic unchanged.
-
 namespace {
 
 struct CamWrite {
@@ -39,8 +25,6 @@ struct PlayerSnap {
 };
 
 PlayerSnap queryPlayerRough() {
-    // Optional next step:
-    // LocalPlayer velocity / onGround signatures.
     return {};
 }
 
@@ -57,7 +41,7 @@ RealisticHeadBobMod::RealisticHeadBobMod()
 bool RealisticHeadBobMod::load() {
     auto& log = getSelf().getLogger();
 
-    log.info("Realistic Head Bob load");
+    log.info("Realistic Head Bob: load");
 
     const auto cfgPath =
         getSelf().getModDir() / "config" / "config.json";
@@ -68,15 +52,16 @@ bool RealisticHeadBobMod::load() {
         cfg.loadDefaults();
 
         std::error_code ec;
-
         std::filesystem::create_directories(
             cfgPath.parent_path(),
             ec
         );
 
-        cfg.saveToFile(cfgPath.string());
-
-        log.info("Wrote default config");
+        if (!cfg.saveToFile(cfgPath.string())) {
+            log.warn("Failed to save default config");
+        } else {
+            log.info("Wrote default config");
+        }
     } else {
         log.info(
             "Config loaded mode={}",
@@ -90,44 +75,25 @@ bool RealisticHeadBobMod::load() {
 bool RealisticHeadBobMod::enable() {
     auto& log = getSelf().getLogger();
 
-    auto& cfg = headbob::Config::get();
-
-    log.info("Realistic Head Bob enable");
+    log.info("Realistic Head Bob: enable");
 
     /*
-     * ModMenu registration is temporarily disabled.
+     * IMPORTANT TEST MODE
      *
-     * Previous crash:
+     * Do not register ModMenu here.
+     * The previous tombstone showed:
      *
-     *   #01 libpreloader.so
-     *       pl::modmenu::registerModule(...)
+     *   libpreloader.so
+     *   pl::modmenu::registerModule()
      *
-     *   #02 librealistic_headbob.so
-     *       RealisticHeadBobMod::enable()
+     * causing the SIGSEGV.
      *
-     * Therefore we do NOT call ModuleBuilder/registerModule()
-     * until the runtime compatibility issue is isolated.
-     *
-     * Configuration still comes from:
-     *
-     *   config/config.json
+     * Also do not install CameraBlend here yet.
+     * We first verify that the mod can enter a world safely.
      */
 
-    if (!cfg.enabled) {
-        log.info("Realistic Head Bob disabled by config");
-        return true;
-    }
-
-    log.info("ModMenu registration skipped");
-
-    if (!resolveAndHook()) {
-        log.warn(
-            "Camera hook not installed — "
-            "check cameraBlendSig in config.json"
-        );
-    } else {
-        log.info("Camera blend hook OK");
-    }
+    log.info("ModMenu disabled for crash test");
+    log.info("Camera hook disabled for crash test");
 
     return true;
 }
@@ -176,7 +142,13 @@ bool RealisticHeadBobMod::resolveAndHook() {
         pl::memory::HookPriority::Low
     );
 
-    return mCameraBlendHook.installed();
+    if (!mCameraBlendHook.installed()) {
+        log.error("CameraBlend hook installation failed");
+        mOrigCameraBlend = nullptr;
+        return false;
+    }
+
+    return true;
 }
 
 void RealisticHeadBobMod::unhookAll() {
@@ -197,9 +169,6 @@ void RealisticHeadBobMod::cameraBlendDetour(
 
     self.onCameraTick(dt);
 
-    // Apply gLastDelta to camera fields when offsets are known.
-    // This remains the same stage as CameraOverhaul.
-
     (void)b;
     (void)gLastDelta;
 }
@@ -214,7 +183,6 @@ void RealisticHeadBobMod::onCameraTick(float dt) {
         dt = 1.f / 60.f;
 
     static float gameTime = 0.f;
-
     gameTime += dt;
 
     const auto snap = queryPlayerRough();

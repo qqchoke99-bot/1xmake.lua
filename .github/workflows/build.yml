@@ -52,33 +52,6 @@ jobs:
             -DMOD_LIBRARY_NAME=realistic_headbob \
             -DMOD_MINECRAFT_VERSIONS='[]'
 
-      - name: Inspect PreLoader API
-        run: |
-          echo "========================================"
-          echo "=== ALL PreLoader headers ==="
-          echo "========================================"
-
-          find build-${{ matrix.abi }}/_deps/preloader_android-src/include \
-            -type f | sort
-
-          echo ""
-          echo "========================================"
-          echo "=== Mod-related headers ==="
-          echo "========================================"
-
-          find build-${{ matrix.abi }}/_deps/preloader_android-src/include \
-            -type f | grep -Ei 'mod|lifecycle|register' || true
-
-          echo ""
-          echo "========================================"
-          echo "=== Mod class definitions ==="
-          echo "========================================"
-
-          grep -RInE \
-            'class .*Mod|struct .*Mod|NativeMod|ModLifecycle|REGISTER_MOD|RegisterMod' \
-            build-${{ matrix.abi }}/_deps/preloader_android-src/include \
-            2>/dev/null | head -200 || true
-
       - name: Build + Package
         run: |
           cmake --build build-${{ matrix.abi }} --target levi_package -j$(nproc)

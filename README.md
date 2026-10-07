@@ -1,7 +1,23 @@
 # Realistic Head Bob (LeviLauncher)
 
-Step / bodycam head-bob for Bedrock on **Levi Launcher**.  
-Uses the same PL stack as CameraOverhaul (`resolveSignature` + `hook`).
+FPS-style step head-bob for Bedrock.  
+Camera path matches **CameraOverhaul 1.1.2-beta**.
+
+## How camera moves
+
+Same as CameraOverhaul:
+
+1. Resolve `CameraBlendSystemTick` in `libminecraftpe.so`
+2. Hook `void(component, blendState, factor)`
+3. After original, multiply quaternion at `component + 0x28`
+
+Signature (from CO `Signatures.cpp`):
+
+```text
+? ? ? D1 ? ? ? 6D ? ? ? 6D ? ? ? 6D ? ? ? 6D ? ? ? A9 ? ? ? F9 ? ? ? A9 ? ? ? A9 ? ? ? 91 55 D0 3B D5 F3 03 01 AA F4 03 00 AA ? ? ? F9 ? ? ? 91 ? ? ? 91
+```
+
+Official CO targets **1.26.45.1**. Nearby 1.26.x builds may work; if resolve fails, update `cameraBlendSig` in config.
 
 ## Modes
 
@@ -10,63 +26,16 @@ Uses the same PL stack as CameraOverhaul (`resolveSignature` + `hook`).
 | `default` | balanced |
 | `bodycam` | heavier (default) |
 | `comfort` | gentler |
-| `custom` | use sliders only |
+| `custom` | sliders only |
 
-## Pre-filled signature (MC 1.26.32x / v126322)
+Edit: `mods/.../config/config.json`  
+(No in-game ModuleBuilder — avoided Levi 1.5.25 crash.)
 
-From Zaphkiel — function xref of  
-`"Multiplayer level - tick camera systems"` @ `0x9f13e0c`
+## Build
 
-```text
-F4 4F 06 A9 FD 03 01 91 54 D0 3B D5 F3 03 00 AA 88 ?? ?? F9 A8 83 1F F8 ?? ?? ?? D0 08 A1 11 91 08 FD DF 08 ?? ?? ?? ?? ?? ?? ?? D0 21 E0 0C 91 E0 63 00 91 ?? ?? ?? 95
-```
+Push → Actions → **Build Levi Mod** → download `.levipack`
 
-- `unique: true`
-- `matches: 1`
-- ARM64 prologue (`stp` / `mrs tpidr_el0`)
+## Credits
 
-Written into default `config.json` on first run.
-
-> This function is the **tick-camera-systems** path (profiler/system registration side).  
-> If camera does not move after hook, the real per-frame blend may be a callee — dig callers of `0x9f13e0c` next.  
-> Keep **CameraOverhaul** for cinematic pitch/roll/sway; this mod adds step bob on top (`HookPriority::Low`).
-
-## Build on GitHub
-
-1. Push this folder as a repo  
-2. Actions → **Build Levi Mod**  
-3. Download `realistic_headbob-arm64-v8a` artifact (`.levipack`)  
-4. Import in LeviLauncher under your MC version folder  
-
-## Config path (after install)
-
-```text
-.../mods/realistic_headbob/config/config.json
-```
-
-Example:
-
-```json
-{
-  "enabled": true,
-  "mode": "bodycam",
-  "globalStrength": 0.32,
-  "moduleName": "libminecraftpe.so",
-  "cameraBlendSig": "F4 4F 06 A9 FD 03 01 91 54 D0 3B D5 F3 03 00 AA 88 ?? ?? F9 A8 83 1F F8 ?? ?? ?? D0 08 A1 11 91 08 FD DF 08 ?? ?? ?? ?? ?? ?? ?? D0 21 E0 0C 91 E0 63 00 91 ?? ?? ?? 95"
-}
-```
-
-## Status
-
-| Feature | Status |
-|---------|--------|
-| Mode select (bodycam/default/...) | yes |
-| Spring-damper step bob (from Java Realistic Head Bobbing) | yes |
-| PL hook + signature | yes (this build) |
-| Player speed / onGround sync | stub (idle + fixed step still run) |
-| Apply yaw/pitch into camera struct | needs offset once hook lands |
-
-## License / credit
-
-Logic ported from [Realistic Head Bobbing](https://www.curseforge.com/minecraft/mc-mods/realistic-head-bobbing) (Java).  
-Hook pattern follows CameraOverhaul / preloader-android.
+- Head-bob math: Realistic Head Bobbing (Java)
+- Camera hook / quat write: CameraOverhaul Bedrock (GPL-3.0, Mirsario-derived math)

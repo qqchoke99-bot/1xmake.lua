@@ -1,7 +1,6 @@
 #pragma once
 
-#include <pl/Mod.hpp>
-#include <pl/memory/Hook.hpp>
+#include <ll/api/mod/NativeMod.h>
 
 #include "mod/Config.h"
 #include "mod/HeadBob.h"
@@ -19,17 +18,18 @@ public:
     bool disable();
     bool unload();
 
-    void onCameraTick(float dt);
-
 private:
     ll::mod::NativeMod& mSelf;
     headbob::State      mState{};
 
-    using CameraBlendFn = void (*)(void*, void*, float);
-    CameraBlendFn          mOrigCameraBlend = nullptr;
-    pl::memory::HookHandle mCameraBlendHook{};
+    using CameraBlendFn = void (*)(void* component, void* blendState, float factor);
+    CameraBlendFn mOrigCameraBlend = nullptr;
+    void*         mHookTarget      = nullptr;
 
     bool resolveAndHook();
     void unhookAll();
-    static void cameraBlendDetour(void* a, void* b, float dt);
+
+    // Same signature as CameraOverhaul CameraBlendSystemTick
+    static void cameraBlendDetour(void* component, void* blendState, float factor);
+    void applyToCamera(void* component, float factor);
 };

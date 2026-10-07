@@ -12,10 +12,9 @@ Config& Config::get() {
 void Config::loadDefaults() {
     *this = Config{};
     mode = Mode::Bodycam;
-    // MC 1.26.32x (v126322) — "Multiplayer level - tick camera systems" xref
-    // unique=true matches=1 @ 0x9f13e0c
+    // CameraOverhaul 1.1.2-beta CameraBlendSystemTick (MC ~1.26.45.1)
     cameraBlendSig =
-        "F4 4F 06 A9 FD 03 01 91 54 D0 3B D5 F3 03 00 AA 88 ?? ?? F9 A8 83 1F F8 ?? ?? ?? D0 08 A1 11 91 08 FD DF 08 ?? ?? ?? ?? ?? ?? ?? D0 21 E0 0C 91 E0 63 00 91 ?? ?? ?? 95";
+        "? ? ? D1 ? ? ? 6D ? ? ? 6D ? ? ? 6D ? ? ? 6D ? ? ? A9 ? ? ? F9 ? ? ? A9 ? ? ? A9 ? ? ? 91 55 D0 3B D5 F3 03 01 AA F4 03 00 AA ? ? ? F9 ? ? ? 91 ? ? ? 91";
     moduleName = "libminecraftpe.so";
 }
 
